@@ -46,7 +46,7 @@ def fgsm_targeted(model, x, target, eps=0.1): # target은 target label을 의미
     model.zero_grad() # 기울기는 누적될 필요가 없음 -> 0
     loss.backward()
 
-    x_adv = x - eps * x.grad.data.sign()
+    x_adv = x - eps * x.grad.detach().sign() # 기울기를 연산 기록에서 안전하게 분리
     x_adv = torch.clamp(x_adv, 0, 1)
     return x_adv
 
@@ -58,38 +58,38 @@ def fgsm_untargeted(model, x, label, eps=0.1): # correct label
 
     model.zero_grad()
     loss.backward()
-    x_adv = x + eps * x.grad.data.sign()
+    x_adv = x + eps * x.grad.detach().sign()
     x_adv = torch.clamp(x_adv, 0, 1)
     return x_adv
 
 
 def pgd_targeted(model, x, target, k=40, eps=0.3, eps_step=0.01):
-    x_adv = x.clone().data
+    x_adv = x.clone().detach()
     for i in range(k):
         x_adv.requires_grad_(True)
         output = model(x_adv)
         loss = F.cross_entropy(output, target)
         model.zero_grad()
         loss.backward()
-        x_adv = x_adv - eps_step * x_adv.grad.data.sign()
+        x_adv = x_adv - eps_step * x_adv.grad.detach().sign()
         x_adv = torch.clamp(x_adv, x-eps, x+eps)
         x_adv = torch.clamp(x_adv, 0, 1)
-        x_adv = x_adv.data
+        x_adv = x_adv.detach()
     return x_adv
 
 
 def pgd_untargeted(model, x, label, k=40, eps=0.3, eps_step=0.01): # correct label
-    x_adv = x.clone().data
+    x_adv = x.clone().detach()
     for i in range(k):
         x_adv.requires_grad_(True)
         output = model(x_adv)
         loss = F.cross_entropy(output, label)
         model.zero_grad()
         loss.backward()
-        x_adv = x_adv + eps_step * x_adv.grad.data.sign()
+        x_adv = x_adv + eps_step * x_adv.grad.detach().sign()
         x_adv = torch.clamp(x_adv, x-eps, x+eps)
         x_adv = torch.clamp(x_adv, 0, 1)
-        x_adv = x_adv.data
+        x_adv = x_adv.detach()
     return x_adv
 
 # 결과 이미지를 저장할 디렉토리 생성
