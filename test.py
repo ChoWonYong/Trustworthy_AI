@@ -193,7 +193,8 @@ def evaluate_attacks(model, testloader, dataset_name):
                 images, labels = images.to(device), labels.to(device)
                 
                 # 원본 이미지가 올바르게 분류되는지 먼저 확인 (틀린 문제는 공격 제외)
-                orig_outputs = model(images)
+                with torch.no_grad():
+                    orig_outputs = model(images)
                 orig_pred = orig_outputs.argmax(dim=1)
                 if orig_pred.item() != labels.item():
                     continue 
@@ -208,7 +209,8 @@ def evaluate_attacks(model, testloader, dataset_name):
                     adv_images = attack_func(model, images, labels, eps=eps)
 
                 # 공격받은 이미지의 예측 결과
-                adv_outputs = model(adv_images)
+                with torch.no_grad():
+                    adv_outputs = model(adv_images)
                 adv_pred = adv_outputs.argmax(dim=1)
 
                 # 성공 여부 판별
