@@ -26,16 +26,40 @@ class CNN_MNIST(nn.Module):
 class CNN_CIFAR10(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc = nn.Linear(64*8*8, num_classes)
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(256 * 4 * 4, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, num_classes),
+        )
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.features(x)
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
+        x = self.classifier(x)
         return x
 
 def fgsm_targeted(model, x, target, eps=0.1): # target은 target label을 의미
@@ -168,6 +192,21 @@ def save_visualization(orig_img, adv_img, orig_pred, adv_pred, filename):
     plt.savefig(f"results/{filename}")
     plt.close()
 
+def evaluate_clean_accuracy(model, testloader, dataset_name):
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for images, labels in testloader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            preds = outputs.argmax(dim=1)
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
+    accuracy = (correct / total) * 100
+    print(f"\n[{dataset_name}] Clean Accuracy (no attack): {accuracy:.2f}%")
+    return accuracy
+
 def evaluate_attacks(model, testloader, dataset_name):
     model.eval()
     attack_funcs = {
@@ -242,6 +281,9 @@ def main():
         model = CNN_MNIST() if dataset == 'MNIST' else CNN_CIFAR10()
         trained_model = train_model(model, trainloader, dataset)
         
+        # 공격 전 모델 정확도 평가
+        evaluate_clean_accuracy(trained_model, testloader, dataset)
+
         # 공격 평가 및 결과 저장
         evaluate_attacks(trained_model, testloader, dataset)
 
