@@ -17,6 +17,6 @@ This project was tested and optimized in a `Python 3.11` and `CUDA 12.2` server 
 ### Conda Virtual Environment Creation and Activation
 
 ```bash
-conda create -n trustworthy_ai python=3.11
-conda activate trustworthy_ai
+conda create -n trustworthy_ai_1 python=3.11
+conda activate trustworthy_ai_1
 ```
